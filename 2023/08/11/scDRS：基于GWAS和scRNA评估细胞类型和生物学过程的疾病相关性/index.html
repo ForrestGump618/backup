@@ -30,7 +30,7 @@
 <meta property="og:description" content="Jinye Zhang教授的scDRS工具简介和实操">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2023-08-11T02:02:59.000Z">
-<meta property="article:modified_time" content="2023-08-12T10:27:36.068Z">
+<meta property="article:modified_time" content="2023-08-25T11:00:32.922Z">
 <meta property="article:author" content="Qingyuan Zhuang">
 <meta name="twitter:card" content="summary">
 
@@ -202,7 +202,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2023-08-12 18:27:36" itemprop="dateModified" datetime="2023-08-12T18:27:36+08:00">2023-08-12</time>
+                <time title="修改时间：2023-08-25 19:00:32" itemprop="dateModified" datetime="2023-08-25T19:00:32+08:00">2023-08-25</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -233,47 +233,26 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <h2 id="方法学概述"><a href="#方法学概述" class="headerlink" title="方法学概述"></a>方法学概述</h2><pre><code>scDRS的核心思想是建立合适的权重从而根据基因的表达对基因程序进行评分，即加权基因表达量。其算法可概述为：首先将基因根据MAGMA得到的gene-level z-scores从大到小排列（也可以自定义基因程序）, 选择潜在的致病基因。基于致病基因的表达量和权重接着计算致病基因程序加权表达量。从而评估该细胞的基因程序和疾病的相关度。
-算法对z-score采用算数加权，对技术噪声指标采用逆加权。也就是说，在GWAS中鉴定出的越相关的，且测序过程中技术原因造成误差较小的基因。根据输入数据集的基因表达，在蒙特卡洛随机模拟生成的B个对照组中，从而推断分布，进而对研究的疾病进行统计检验。利用这样的方法，我们可以计算单个细胞和疾病的相关性，以及鉴定相应的驱动基因，并基于此进行下游分析。
-</code></pre>
+        <h2 id="方法学概述"><a href="#方法学概述" class="headerlink" title="方法学概述"></a>方法学概述</h2><p>scDRS的核心思想是建立合适的权重从而根据基因的表达对基因程序进行评分，即加权基因表达量。其算法可概述为：首先将基因根据MAGMA得到的gene-level z-scores从大到小排列（也可以自定义基因程序）, 选择潜在的致病基因。基于致病基因的表达量和权重接着计算致病基因程序加权表达量。从而评估该细胞的基因程序和疾病的相关度。<br>算法对z-score采用算数加权，对技术噪声指标采用逆加权。也就是说，在GWAS中鉴定出的越相关的，且测序过程中技术原因造成误差较小的基因。根据输入数据集的基因表达，在蒙特卡洛随机模拟生成的B个对照组中，从而推断分布，进而对研究的疾病进行统计检验。利用这样的方法，我们可以计算单个细胞和疾病的相关性，以及鉴定相应的驱动基因，并基于此进行下游分析。</p>
 <h2 id="使用scdrs包在Python中进行分析"><a href="#使用scdrs包在Python中进行分析" class="headerlink" title="使用scdrs包在Python中进行分析"></a>使用scdrs包在Python中进行分析</h2><h3 id="载入程序包"><a href="#载入程序包" class="headerlink" title="载入程序包"></a>载入程序包</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> scanpy <span class="keyword">as</span> sc</span><br><span class="line"><span class="keyword">import</span> pandas <span class="keyword">as</span> pd</span><br><span class="line"><span class="keyword">import</span> scdrs</span><br></pre></td></tr></table></figure>
 
 <h3 id="基础参数设置"><a href="#基础参数设置" class="headerlink" title="基础参数设置"></a>基础参数设置</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">sc.settings.verbosity = <span class="number">3</span> <span class="comment"># 设置日志等级:errors(0),warnings(1),info(2),hints(3)</span></span><br><span class="line">sc.logging.print_header() <span class="comment"># 输出版本号</span></span><br><span class="line">sc.settings.set_figure_params(dpi=<span class="number">300</span>, facecolor=<span class="string">&#x27;white&#x27;</span>) <span class="comment"># 设置图片的分辨率300dpi</span></span><br></pre></td></tr></table></figure>
 
 <h3 id="读取计数矩阵和基本的处理"><a href="#读取计数矩阵和基本的处理" class="headerlink" title="读取计数矩阵和基本的处理"></a>读取计数矩阵和基本的处理</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">adata = sc.read_csv(<span class="string">&quot;heart.csv&quot;</span>) <span class="comment"># 注意，这里的heart.csv列为细胞，行为基因，这一点和seurat框架是不同的。</span></span><br><span class="line"><span class="comment"># 其他的读取方法可参考scanpy的文档。</span></span><br><span class="line">adata.var_names_make_unique()</span><br><span class="line">adata.obs_names_make_unique()</span><br><span class="line">adata.var.head() <span class="comment"># 基因特征的摘要</span></span><br><span class="line">adata.obs.head() <span class="comment"># 细胞特征的摘要</span></span><br><span class="line">adata <span class="comment"># 返回矩阵大小，基因相关的变量以及细胞相关的变量数据</span></span><br><span class="line">sc.pl.highest_expr_genes(adata, n_top=<span class="number">20</span>) <span class="comment"># 显示在全部单个细胞中基因读数占总读数的百分比排名前20的基因</span></span><br></pre></td></tr></table></figure>
 
-<h3 id="质量控制"><a href="#质量控制" class="headerlink" title="质量控制"></a>质量控制</h3><pre><code>质量控制，大部分都是针对细胞（obs）的质量控制。
-细胞质控通常对以下三个质控协变量进行：
-    1. 每个条形码的计数数量（计数深度）
-    2. 每个条形码的基因数量
-    3. 每个条形码的线粒体基因计数比例
-如果一个细胞正在死亡，其mRNA被释放到内环境，导致线粒体基因的比例较高，所以我们可以通过线粒体基因的比例来过滤掉低质量的单细胞测序数据。但是如果仅考虑一个变量可能会造成生物学误差，共同考虑三个 QC 协变量至关重要。例如，线粒体计数相对较高的细胞可能参与呼吸过程，不应被过滤掉。然而，计数低或高的细胞可能对应于静止细胞群或尺寸较大的细胞。故我们在过滤低质量细胞的时候，要同时考虑不同的QC协变量之间的关系。
-</code></pre>
-<h4 id="质控指标的计算"><a href="#质控指标的计算" class="headerlink" title="质控指标的计算"></a>质控指标的计算</h4><pre><code>首先采用正则表达式识别线粒体；接着，我们将根据识别的结果进行比例的计算。
-</code></pre>
+<h3 id="质量控制"><a href="#质量控制" class="headerlink" title="质量控制"></a>质量控制</h3><p>质量控制，大部分都是针对细胞（obs）的质量控制。<br>细胞质控通常对以下三个质控协变量进行：<br>    1. 每个条形码的计数数量（计数深度）<br>    2. 每个条形码的基因数量<br>    3. 每个条形码的线粒体基因计数比例<br>如果一个细胞正在死亡，其mRNA被释放到内环境，导致线粒体基因的比例较高，所以我们可以通过线粒体基因的比例来过滤掉低质量的单细胞测序数据。但是如果仅考虑一个变量可能会造成生物学误差，共同考虑三个 QC 协变量至关重要。例如，线粒体计数相对较高的细胞可能参与呼吸过程，不应被过滤掉。然而，计数低或高的细胞可能对应于静止细胞群或尺寸较大的细胞。故我们在过滤低质量细胞的时候，要同时考虑不同的QC协变量之间的关系。</p>
+<h4 id="质控指标的计算"><a href="#质控指标的计算" class="headerlink" title="质控指标的计算"></a>质控指标的计算</h4><p>首先采用正则表达式识别线粒体；接着，我们将根据识别的结果进行比例的计算。</p>
 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 线粒体基因</span></span><br><span class="line">adata.var[<span class="string">&quot;mt&quot;</span>] = adata.var_names.<span class="built_in">str</span>.startswith(<span class="string">&quot;MT-&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 基因比例计算</span></span><br><span class="line">sc.pp.calculate_qc_metrics(adata, qc_vars=[<span class="string">&quot;mt&quot;</span>], inplace=<span class="literal">True</span>, percent_top=[<span class="number">20</span>], log1p=<span class="literal">True</span>) <span class="comment"># 此处可以计算其他给定基因；该步骤之后，才可以得到n_counts等数据。</span></span><br></pre></td></tr></table></figure>
-
-<pre><code>通过上面的计算和adata.obs固有的数据，我们可以得到三个质控协变量：
-    1. n_genes_by_counts/detected_genes: 一个细胞中发现的有效基因数量（即表达量不为0）
-    2. total_counts/nUMIs: 一个细胞中发现的分子数量（UMI），通常也可以被认为是这个细胞的文库大小
-    3. pct_counts_mt/mito_perc: 一个细胞中线粒体基因的表达计数占比
-可以绘制三个协变量的分布图。
-</code></pre>
+<p>通过上面的计算和adata.obs固有的数据，我们可以得到三个质控协变量：<br>    1. n_genes_by_counts&#x2F;detected_genes: 一个细胞中发现的有效基因数量（即表达量不为0）<br>    2. total_counts&#x2F;nUMIs: 一个细胞中发现的分子数量（UMI），通常也可以被认为是这个细胞的文库大小<br>    3. pct_counts_mt&#x2F;mito_perc: 一个细胞中线粒体基因的表达计数占比<br>可以绘制三个协变量的分布图。</p>
 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> matplotlib.pyplot <span class="keyword">as</span> plt</span><br><span class="line">mito_filter = <span class="number">25</span> <span class="comment"># 根据数据集合设定，注意，心室肌等组织富含线粒体，需要根据情况进行更改。</span></span><br><span class="line">n_counts_filter = <span class="number">4300</span> <span class="comment"># 根据上述的MAD方法进行设定，官方教程认为counts数过多可能是双细胞，但是下面采用scrublet方法进行双细胞识别。</span></span><br><span class="line">fig, axs = plt.subplots(ncols = <span class="number">2</span>, figsize = (<span class="number">8</span>,<span class="number">4</span>))</span><br><span class="line">sc.pl.scatter(adata, x=<span class="string">&#x27;total_counts&#x27;</span>, y=<span class="string">&#x27;pct_counts_mt&#x27;</span>,ax = axs[<span class="number">0</span>], show=<span class="literal">False</span>)</span><br><span class="line">sc.pl.scatter(adata, x=<span class="string">&#x27;total_counts&#x27;</span>, y=<span class="string">&#x27;n_genes_by_counts&#x27;</span>,ax = axs[<span class="number">1</span>], show = <span class="literal">False</span>)</span><br><span class="line"><span class="comment"># draw horizontal red lines indicating thresholds.</span></span><br><span class="line">axs[<span class="number">0</span>].hlines(y = mito_filter, xmin = <span class="number">0</span>, xmax = <span class="built_in">max</span>(adata.obs[<span class="string">&#x27;total_counts&#x27;</span>]), color = <span class="string">&#x27;red&#x27;</span>, ls = <span class="string">&#x27;dashed&#x27;</span>)</span><br><span class="line">axs[<span class="number">1</span>].hlines(y = n_counts_filter, xmin = <span class="number">0</span>, xmax = <span class="built_in">max</span>(adata.obs[<span class="string">&#x27;total_counts&#x27;</span>]), color = <span class="string">&#x27;red&#x27;</span>, ls = <span class="string">&#x27;dashed&#x27;</span>)</span><br><span class="line">fig.tight_layout()</span><br><span class="line">plt.show()</span><br></pre></td></tr></table></figure>
 
-<pre><code>也可以采用小提琴图。
-</code></pre>
+<p>也可以采用小提琴图。</p>
 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sc.pl.violin(adata, [<span class="string">&#x27;n_genes_by_counts&#x27;</span>, <span class="string">&#x27;total_counts&#x27;</span>, <span class="string">&#x27;pct_counts_mt&#x27;</span>],jitter=<span class="number">0.4</span>, multi_panel=<span class="literal">True</span>)</span><br></pre></td></tr></table></figure>
 
-<pre><code>还可以采用直方图。
-</code></pre>
+<p>还可以采用直方图。</p>
 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> seaborn <span class="keyword">as</span> sns</span><br><span class="line">sns.histplot(adata.obs[<span class="string">&quot;n_genes_by_counts&quot;</span>], bins=<span class="number">100</span>, kde=<span class="literal">False</span>)</span><br><span class="line">sns.histplot(adata.obs[<span class="string">&quot;total_counts&quot;</span>], bins=<span class="number">100</span>, kde=<span class="literal">False</span>)</span><br><span class="line">sns.histplot(adata.obs[<span class="string">&quot;pct_counts_mt&quot;</span>], bins=<span class="number">100</span>, kde=<span class="literal">False</span>)</span><br></pre></td></tr></table></figure>
 
-<h4 id="双细胞过滤"><a href="#双细胞过滤" class="headerlink" title="双细胞过滤"></a>双细胞过滤</h4><pre><code>双细胞被定义为在相同的细胞条形码（barcode）下进行测序的两个细胞，例如，如果它们被捕获在同一个液滴（droplet）中。双细胞由同型（homotypic）与异型（heterotypic）所构成
-    同型：同型通常被认为是不影响下游分析的，因为其是由一类相同的细胞中的两个所构成，所以这部分细胞不是我们所需要过滤的对象。
-    异型：异型通常是由来自两类不同的细胞所构成的，异型的存在会使得我们后续的细胞分类出现错误，因为其独特的数据分布特征。
-我们可以通过人工构建双细胞进行模拟识别，以排除异型的存在。我们将使用scrublet来完成双细胞的识别。
-</code></pre>
+<h4 id="双细胞过滤"><a href="#双细胞过滤" class="headerlink" title="双细胞过滤"></a>双细胞过滤</h4><p>双细胞被定义为在相同的细胞条形码（barcode）下进行测序的两个细胞，例如，如果它们被捕获在同一个液滴（droplet）中。双细胞由同型（homotypic）与异型（heterotypic）所构成<br>    同型：同型通常被认为是不影响下游分析的，因为其是由一类相同的细胞中的两个所构成，所以这部分细胞不是我们所需要过滤的对象。<br>    异型：异型通常是由来自两类不同的细胞所构成的，异型的存在会使得我们后续的细胞分类出现错误，因为其独特的数据分布特征。<br>我们可以通过人工构建双细胞进行模拟识别，以排除异型的存在。我们将使用scrublet来完成双细胞的识别。</p>
 <figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sc.external.pp.scrublet(adata, random_state=<span class="number">112</span>)</span><br><span class="line">adata = adata[adata.obs[<span class="string">&#x27;predicted_doublet&#x27;</span>]==<span class="literal">False</span>, :]</span><br></pre></td></tr></table></figure>
 
 <h4 id="低质量细胞过滤"><a href="#低质量细胞过滤" class="headerlink" title="低质量细胞过滤"></a>低质量细胞过滤</h4><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">adata = adata[adata.obs.pct_counts_mt &lt; <span class="number">25</span>, :]</span><br><span class="line">adata = adata[adata.obs.n_genes_by_counts &gt; <span class="number">200</span>, :]</span><br><span class="line">adata = adata[adata.obs.total_counts &gt; <span class="number">300</span>, :]</span><br><span class="line">sc.pp.filter_cells(adata, min_genes=<span class="number">200</span>)</span><br><span class="line">sc.pp.filter_genes(adata, min_cells=<span class="number">3</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 小提琴图可视化</span></span><br><span class="line">sc.pl.violin(adata, [<span class="string">&#x27;n_genes_by_counts&#x27;</span>, <span class="string">&#x27;total_counts&#x27;</span>, <span class="string">&#x27;pct_counts_mt&#x27;</span>],jitter=<span class="number">0.4</span>, multi_panel=<span class="literal">True</span>)</span><br></pre></td></tr></table></figure>
